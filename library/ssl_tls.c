@@ -2035,7 +2035,8 @@ int mbedtls_ssl_write_certificate( mbedtls_ssl_context *ssl )
 
     MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> write certificate" ) );
 
-    if( !mbedtls_ssl_ciphersuite_uses_srv_cert( ciphersuite_info ) )
+    if( !mbedtls_ssl_ciphersuite_uses_srv_cert( ciphersuite_info ) ||
+        ssl->conf->send_certificate == MBEDTLS_SSL_SEND_CERTIFICATE_DISABLED )
     {
         MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= skip write certificate" ) );
         ssl->state++;
@@ -2053,7 +2054,8 @@ int mbedtls_ssl_parse_certificate( mbedtls_ssl_context *ssl )
 
     MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> parse certificate" ) );
 
-    if( !mbedtls_ssl_ciphersuite_uses_srv_cert( ciphersuite_info ) )
+    if( !mbedtls_ssl_ciphersuite_uses_srv_cert( ciphersuite_info ) ||
+        ssl->conf->receive_certificate == MBEDTLS_SSL_RECEIVE_CERTIFICATE_DISABLED )
     {
         MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= skip parse certificate" ) );
         ssl->state++;
@@ -2076,7 +2078,8 @@ int mbedtls_ssl_write_certificate( mbedtls_ssl_context *ssl )
 
     MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> write certificate" ) );
 
-    if( !mbedtls_ssl_ciphersuite_uses_srv_cert( ciphersuite_info ) )
+    if( !mbedtls_ssl_ciphersuite_uses_srv_cert( ciphersuite_info ) ||
+        ssl->conf->send_certificate == MBEDTLS_SSL_SEND_CERTIFICATE_DISABLED )
     {
         MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= skip write certificate" ) );
         ssl->state++;
@@ -2500,8 +2503,11 @@ static int ssl_parse_certificate_coordinate( mbedtls_ssl_context *ssl,
     const mbedtls_ssl_ciphersuite_t *ciphersuite_info =
         ssl->handshake->ciphersuite_info;
 
-    if( !mbedtls_ssl_ciphersuite_uses_srv_cert( ciphersuite_info ) )
+    if( !mbedtls_ssl_ciphersuite_uses_srv_cert( ciphersuite_info ) ||
+        ssl->conf->receive_certificate == MBEDTLS_SSL_RECEIVE_CERTIFICATE_DISABLED )
+    {
         return( SSL_CERTIFICATE_SKIP );
+    }
 
 #if defined(MBEDTLS_SSL_SRV_C)
     if( ssl->conf->endpoint == MBEDTLS_SSL_IS_SERVER )
@@ -4884,6 +4890,14 @@ void mbedtls_ssl_conf_session_tickets_cb( mbedtls_ssl_config *conf,
 #endif
 #endif /* MBEDTLS_SSL_SESSION_TICKETS */
 
+void mbedtls_ssl_conf_certificate_send( mbedtls_ssl_config *conf, int send_certificate ) {
+    conf->send_certificate = send_certificate;
+}
+
+void mbedtls_ssl_conf_certificate_receive( mbedtls_ssl_config *conf, int receive_certificate ) {
+    conf->receive_certificate = receive_certificate;
+}
+
 #if defined(MBEDTLS_SSL_EXPORT_KEYS)
 void mbedtls_ssl_conf_export_keys_cb( mbedtls_ssl_config *conf,
         mbedtls_ssl_export_keys_t *f_export_keys,
@@ -6966,6 +6980,9 @@ int mbedtls_ssl_config_defaults( mbedtls_ssl_config *conf,
     memset( conf->renego_period,     0x00, 2 );
     memset( conf->renego_period + 2, 0xFF, 6 );
 #endif
+
+    conf->send_certificate = MBEDTLS_SSL_SEND_CERTIFICATE_ENABLED;
+    conf->receive_certificate = MBEDTLS_SSL_RECEIVE_CERTIFICATE_ENABLED;
 
 #if defined(MBEDTLS_SSL_RAW_PUBLIC_KEY_SUPPORT)
     conf->client_certificate_type_list = ssl_preset_certificate_types;
