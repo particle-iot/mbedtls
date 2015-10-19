@@ -203,6 +203,9 @@
 #define MBEDTLS_SSL_CERT_REQ_CA_LIST_ENABLED       1
 #define MBEDTLS_SSL_CERT_REQ_CA_LIST_DISABLED      0
 
+#define MBEDTLS_SSL_SEND_CERTIFICATE_DISABLED       0
+#define MBEDTLS_SSL_SEND_CERTIFICATE_ENABLED        1
+
 /*
  * Default range for DTLS retransmission timer value, in milliseconds.
  * RFC 6347 4.2.4.1 says from 1 second to 60 seconds.
@@ -1029,6 +1032,8 @@ struct mbedtls_ssl_config
     unsigned int cert_req_ca_list : 1;  /*!< enable sending CA list in
                                           Certificate Request messages?     */
 #endif
+
+    unsigned int send_certificate : 1;
 #if defined(MBEDTLS_SSL_RAW_PUBLIC_KEY_SUPPORT)
     const int *server_certificate_type_list;
     const int *client_certificate_type_list;
@@ -2751,6 +2756,8 @@ void mbedtls_ssl_conf_renegotiation_enforced( mbedtls_ssl_config *conf, int max_
 void mbedtls_ssl_conf_renegotiation_period( mbedtls_ssl_config *conf,
                                    const unsigned char period[8] );
 #endif /* MBEDTLS_SSL_RENEGOTIATION */
+
+void mbedtls_ssl_conf_certificate_send( mbedtls_ssl_config *conf, int send_certificate );
 
 /**
  * \brief          Check if there is data already read from the
