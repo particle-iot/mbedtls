@@ -183,6 +183,9 @@
 #define MBEDTLS_SSL_PRESET_DEFAULT              0
 #define MBEDTLS_SSL_PRESET_SUITEB               2
 
+#define MBEDTLS_SSL_SEND_CERTIFICATE_DISABLED		0
+#define MBEDTLS_SSL_SEND_CERTIFICATE_ENABLED		1
+
 /*
  * Default range for DTLS retransmission timer value, in milliseconds.
  * RFC 6347 4.2.4.1 says from 1 second to 60 seconds.
@@ -660,6 +663,8 @@ struct mbedtls_ssl_config
 #if defined(MBEDTLS_SSL_FALLBACK_SCSV) && defined(MBEDTLS_SSL_CLI_C)
     unsigned int fallback : 1;      /*!< is this a fallback?                */
 #endif
+
+   	unsigned int send_certificate: 1;
 #if defined(MBEDTLS_SSL_RAW_PUBLIC_KEY_SUPPORT)
     const int *server_certificate_type_list;
     const int *client_certificate_type_list;
@@ -2078,6 +2083,8 @@ void mbedtls_ssl_conf_renegotiation_enforced( mbedtls_ssl_config *conf, int max_
 void mbedtls_ssl_conf_renegotiation_period( mbedtls_ssl_config *conf,
                                    const unsigned char period[8] );
 #endif /* MBEDTLS_SSL_RENEGOTIATION */
+
+void mbedtls_ssl_conf_certificate_send( mbedtls_ssl_config *conf, int send_certificate );
 
 /**
  * \brief          Return the number of data bytes available to read
