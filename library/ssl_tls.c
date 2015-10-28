@@ -5748,6 +5748,16 @@ int mbedtls_ssl_parse_certificate( mbedtls_ssl_context *ssl )
     }
 #endif
 
+#if defined(MBEDTLS_SSL_CLI_C)
+    if( ssl->conf->endpoint == MBEDTLS_SSL_IS_CLIENT &&
+        ssl->conf->receive_certificate == MBEDTLS_SSL_RECEIVE_CERTIFICATE_DISABLED )
+    {
+        MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= skip parse certificate" ) );
+        ssl->state++;
+        return( 0 );
+    }
+#endif
+
 #if defined(MBEDTLS_SSL__ECP_RESTARTABLE)
     if( ssl->handshake->ecrs_enabled &&
         ssl->handshake->ecrs_state == ssl_ecrs_crt_verify )
@@ -7812,6 +7822,10 @@ void mbedtls_ssl_conf_certificate_send( mbedtls_ssl_config *conf, int send_certi
     conf->send_certificate = send_certificate;
 }
 
+void mbedtls_ssl_conf_certificate_receive( mbedtls_ssl_config *conf, int receive_certificate ) {
+    conf->receive_certificate = receive_certificate;
+}
+
 #if defined(MBEDTLS_SSL_EXPORT_KEYS)
 void mbedtls_ssl_conf_export_keys_cb( mbedtls_ssl_config *conf,
         mbedtls_ssl_export_keys_t *f_export_keys,
@@ -9226,6 +9240,7 @@ int mbedtls_ssl_config_defaults( mbedtls_ssl_config *conf,
 #endif
 
     conf->send_certificate = MBEDTLS_SSL_SEND_CERTIFICATE_ENABLED;
+    conf->receive_certificate = MBEDTLS_SSL_RECEIVE_CERTIFICATE_ENABLED;
 #if defined(MBEDTLS_SSL_RAW_PUBLIC_KEY_SUPPORT)
     conf->client_certificate_type_list = ssl_preset_certificate_types;
     conf->server_certificate_type_list = ssl_preset_certificate_types;
