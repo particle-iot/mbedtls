@@ -4170,7 +4170,6 @@ int mbedtls_ssl_write_certificate( mbedtls_ssl_context *ssl )
     int ret = MBEDTLS_ERR_SSL_FEATURE_UNAVAILABLE;
     size_t i, n;
     const mbedtls_x509_crt *crt;
-    mbedtls_pk_context *key;
     const mbedtls_ssl_ciphersuite_t *ciphersuite_info = ssl->transform_negotiate->ciphersuite_info;
 
     MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> write certificate" ) );
@@ -4232,6 +4231,8 @@ int mbedtls_ssl_write_certificate( mbedtls_ssl_context *ssl )
     if ( ssl->handshake->client_cert_type == MBEDTLS_TLS_CERT_TYPE_RAW_PUBLIC_KEY )
 #endif
     {
+        mbedtls_pk_context *key;
+
         key = mbedtls_ssl_own_key( ssl );
         i = 7;        
         unsigned char keybuf[512];
