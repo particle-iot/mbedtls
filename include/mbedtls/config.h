@@ -3332,6 +3332,14 @@
 #define MBEDTLS_X509_CSR_WRITE_C
 
 /**
+ * \def MBEDTLS_X509_INFO_DISABLE
+ *
+ * Disable mbedtls_x509_crt_info and mbedtls_x509_crt_verify_info functions
+ *
+ */
+// #define MBEDTLS_X509_INFO_DISABLE
+
+/**
  * \def MBEDTLS_XTEA_C
  *
  * Enable the XTEA block cipher.

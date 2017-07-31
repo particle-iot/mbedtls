@@ -1733,6 +1733,7 @@ static int x509_get_other_name( const mbedtls_x509_buf *subject_alt_name,
     return( 0 );
 }
 
+#if !defined(MBEDTLS_X509_INFO_DISABLE)
 static int x509_info_subject_alt_name( char **buf, size_t *size,
                                        const mbedtls_x509_sequence
                                                     *subject_alt_name,
@@ -1845,6 +1846,7 @@ static int x509_info_subject_alt_name( char **buf, size_t *size,
 
     return( 0 );
 }
+#endif /* !defined(MBEDTLS_X509_INFO_DISABLE) */
 
 int mbedtls_x509_parse_subject_alt_name( const mbedtls_x509_buf *san_buf,
                                          mbedtls_x509_subject_alternative_name *san )
@@ -1896,6 +1898,7 @@ int mbedtls_x509_parse_subject_alt_name( const mbedtls_x509_buf *san_buf,
     return( 0 );
 }
 
+#if !defined(MBEDTLS_X509_INFO_DISABLE)
 #define PRINT_ITEM(i)                           \
     {                                           \
         ret = mbedtls_snprintf( p, n, "%s" i, sep );    \
@@ -2220,6 +2223,7 @@ int mbedtls_x509_crt_verify_info( char *buf, size_t size, const char *prefix,
 
     return( (int) ( size - n ) );
 }
+#endif /* !defined(MBEDTLS_X509_INFO_DISABLE) */
 
 #if defined(MBEDTLS_X509_CHECK_KEY_USAGE)
 int mbedtls_x509_crt_check_key_usage( const mbedtls_x509_crt *crt,
