@@ -160,6 +160,7 @@ typedef struct {
     const char          *short_name;
 } oid_x520_attr_t;
 
+#ifndef MBEDTLS_OID_OPTIMIZE_STRINGS
 static const oid_x520_attr_t oid_x520_attr_type[] =
 {
     {
@@ -246,6 +247,7 @@ static const oid_x520_attr_t oid_x520_attr_type[] =
 
 FN_OID_TYPED_FROM_ASN1(oid_x520_attr_t, x520_attr, oid_x520_attr_type)
 FN_OID_GET_ATTR1(mbedtls_oid_get_attr_short_name, oid_x520_attr_t, x520_attr, const char *, short_name)
+#endif // MBEDTLS_OID_OPTIMIZE_STRINGS
 
 /*
  * For X509 extensions
@@ -290,6 +292,7 @@ static const oid_x509_ext_t oid_x509_ext[] =
 FN_OID_TYPED_FROM_ASN1(oid_x509_ext_t, x509_ext, oid_x509_ext)
 FN_OID_GET_ATTR1(mbedtls_oid_get_x509_ext_type, oid_x509_ext_t, x509_ext, int, ext_type)
 
+#ifndef MBEDTLS_OID_OPTIMIZE_STRINGS
 static const mbedtls_oid_descriptor_t oid_ext_key_usage[] =
 {
     { ADD_LEN( MBEDTLS_OID_SERVER_AUTH ),      "id-kp-serverAuth",       "TLS Web Server Authentication" },
@@ -304,6 +307,7 @@ static const mbedtls_oid_descriptor_t oid_ext_key_usage[] =
 
 FN_OID_TYPED_FROM_ASN1(mbedtls_oid_descriptor_t, ext_key_usage, oid_ext_key_usage)
 FN_OID_GET_ATTR1(mbedtls_oid_get_extended_key_usage, mbedtls_oid_descriptor_t, ext_key_usage, const char *, description)
+#endif // MBEDTLS_OID_OPTIMIZE_STRINGS
 
 static const mbedtls_oid_descriptor_t oid_certificate_policies[] =
 {
@@ -419,9 +423,13 @@ static const oid_sig_alg_t oid_sig_alg[] =
 };
 
 FN_OID_TYPED_FROM_ASN1(oid_sig_alg_t, sig_alg, oid_sig_alg)
-FN_OID_GET_DESCRIPTOR_ATTR1(mbedtls_oid_get_sig_alg_desc, oid_sig_alg_t, sig_alg, const char *, description)
 FN_OID_GET_ATTR2(mbedtls_oid_get_sig_alg, oid_sig_alg_t, sig_alg, mbedtls_md_type_t, md_alg, mbedtls_pk_type_t, pk_alg)
+
+#ifndef MBEDTLS_OID_OPTIMIZE_STRINGS
+FN_OID_GET_DESCRIPTOR_ATTR1(mbedtls_oid_get_sig_alg_desc, oid_sig_alg_t, sig_alg, const char *, description)
 FN_OID_GET_OID_BY_ATTR2(mbedtls_oid_get_oid_by_sig_alg, oid_sig_alg_t, oid_sig_alg, mbedtls_pk_type_t, pk_alg, mbedtls_md_type_t, md_alg)
+#endif
+
 #endif /* MBEDTLS_MD_C */
 
 /*
@@ -454,7 +462,9 @@ static const oid_pk_alg_t oid_pk_alg[] =
 
 FN_OID_TYPED_FROM_ASN1(oid_pk_alg_t, pk_alg, oid_pk_alg)
 FN_OID_GET_ATTR1(mbedtls_oid_get_pk_alg, oid_pk_alg_t, pk_alg, mbedtls_pk_type_t, pk_alg)
+#if !defined(MBEDTLS_OID_OPTIMIZE_STRINGS) || defined(MBEDTLS_ECP_C)
 FN_OID_GET_OID_BY_ATTR1(mbedtls_oid_get_oid_by_pk_alg, oid_pk_alg_t, oid_pk_alg, mbedtls_pk_type_t, pk_alg)
+#endif
 
 #if defined(MBEDTLS_ECP_C)
 /*
@@ -542,6 +552,7 @@ static const oid_ecp_grp_t oid_ecp_grp[] =
 FN_OID_TYPED_FROM_ASN1(oid_ecp_grp_t, grp_id, oid_ecp_grp)
 FN_OID_GET_ATTR1(mbedtls_oid_get_ec_grp, oid_ecp_grp_t, grp_id, mbedtls_ecp_group_id, grp_id)
 FN_OID_GET_OID_BY_ATTR1(mbedtls_oid_get_oid_by_ec_grp, oid_ecp_grp_t, oid_ecp_grp, mbedtls_ecp_group_id, grp_id)
+
 #endif /* MBEDTLS_ECP_C */
 
 #if defined(MBEDTLS_CIPHER_C)
@@ -553,6 +564,7 @@ typedef struct {
     mbedtls_cipher_type_t       cipher_alg;
 } oid_cipher_alg_t;
 
+#ifndef MBEDTLS_OID_OPTIMIZE_STRINGS
 static const oid_cipher_alg_t oid_cipher_alg[] =
 {
     {
@@ -571,6 +583,8 @@ static const oid_cipher_alg_t oid_cipher_alg[] =
 
 FN_OID_TYPED_FROM_ASN1(oid_cipher_alg_t, cipher_alg, oid_cipher_alg)
 FN_OID_GET_ATTR1(mbedtls_oid_get_cipher_alg, oid_cipher_alg_t, cipher_alg, mbedtls_cipher_type_t, cipher_alg)
+#endif
+
 #endif /* MBEDTLS_CIPHER_C */
 
 #if defined(MBEDTLS_MD_C)
@@ -716,8 +730,11 @@ static const oid_pkcs12_pbe_alg_t oid_pkcs12_pbe_alg[] =
     },
 };
 
+#ifndef MBEDTLS_OID_OPTIMIZE_STRINGS
 FN_OID_TYPED_FROM_ASN1(oid_pkcs12_pbe_alg_t, pkcs12_pbe_alg, oid_pkcs12_pbe_alg)
 FN_OID_GET_ATTR2(mbedtls_oid_get_pkcs12_pbe_alg, oid_pkcs12_pbe_alg_t, pkcs12_pbe_alg, mbedtls_md_type_t, md_alg, mbedtls_cipher_type_t, cipher_alg)
+#endif
+
 #endif /* MBEDTLS_PKCS12_C */
 
 #define OID_SAFE_SNPRINTF                               \
