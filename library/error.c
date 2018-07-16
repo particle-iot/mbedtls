@@ -491,6 +491,8 @@ void mbedtls_strerror( int ret, char *buf, size_t buflen )
             mbedtls_snprintf( buf, buflen, "SSL - The alert message received indicates a non-fatal error" );
         if( use_ret == -(MBEDTLS_ERR_SSL_INVALID_VERIFY_HASH) )
             mbedtls_snprintf( buf, buflen, "SSL - Couldn't set the hash for verifying CertificateVerify" );
+        if( use_ret == -(MBEDTLS_ERR_SSL_NO_CERTIFICATE_TYPE_CHOSEN) )
+            mbedtls_snprintf( buf, buflen, "SSL - The server has no certificate types in common with the client" );
         if( use_ret == -(MBEDTLS_ERR_SSL_CONTINUE_PROCESSING) )
             mbedtls_snprintf( buf, buflen, "SSL - Internal-only message signaling that further message-processing should be done" );
 #endif /* MBEDTLS_SSL_TLS_C */

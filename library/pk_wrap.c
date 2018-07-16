@@ -30,6 +30,7 @@
 
 /* Even if RSA not activated, for the sake of RSA-alt */
 #include "mbedtls/rsa.h"
+#include "mbedtls/bignum.h"
 
 #include <string.h>
 
