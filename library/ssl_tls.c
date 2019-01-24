@@ -3687,6 +3687,7 @@ static int ssl_handle_possible_reconnect( mbedtls_ssl_context *ssl )
  */
 static int ssl_parse_record_header( mbedtls_ssl_context *ssl )
 {
+    int ret;
     int major_ver, minor_ver;
 
     MBEDTLS_SSL_DEBUG_BUF( 4, "input record header", ssl->in_hdr, mbedtls_ssl_hdr_len( ssl ) );
@@ -3790,9 +3791,15 @@ static int ssl_parse_record_header( mbedtls_ssl_context *ssl )
              */
             if( rec_epoch == 1 &&
                 ssl->in_msgtype == MBEDTLS_SSL_MSG_HANDSHAKE &&
-                ( ssl->state == MBEDTLS_SSL_CLIENT_CHANGE_CIPHER_SPEC ||
-                  ssl->state == MBEDTLS_SSL_SERVER_CHANGE_CIPHER_SPEC ) )
+                ( ( ssl->conf->endpoint == MBEDTLS_SSL_IS_SERVER &&
+                    ( ssl->state == MBEDTLS_SSL_CLIENT_CERTIFICATE ||
+                      ssl->state == MBEDTLS_SSL_CLIENT_KEY_EXCHANGE ||
+                      ssl->state == MBEDTLS_SSL_CERTIFICATE_VERIFY ||
+                      ssl->state == MBEDTLS_SSL_CLIENT_CHANGE_CIPHER_SPEC ) ) ||
+                  ( ssl->conf->endpoint == MBEDTLS_SSL_IS_CLIENT &&
+                    ssl->state == MBEDTLS_SSL_SERVER_CHANGE_CIPHER_SPEC ) ) )
             {
+
                 MBEDTLS_SSL_DEBUG_MSG( 2, ( "allowing potential future Finished message through epoch check" ) );
             }
             else
@@ -3815,6 +3822,24 @@ static int ssl_parse_record_header( mbedtls_ssl_context *ssl )
             ssl->state != MBEDTLS_SSL_CLIENT_CHANGE_CIPHER_SPEC &&
             ssl->state != MBEDTLS_SSL_SERVER_CHANGE_CIPHER_SPEC )
         {
+#if defined(MBEDTLS_SSL_DTLS_HANDSHAKE_QUEUE)
+            /* Finished state means the CCS is late */
+            if ( ssl->in_epoch == 0 &&
+                 ( ( ssl->conf->endpoint == MBEDTLS_SSL_IS_SERVER &&
+                     ssl->state != MBEDTLS_SSL_CLIENT_FINISHED ) ||
+                   ( ssl->conf->endpoint == MBEDTLS_SSL_IS_CLIENT &&
+                     ssl->state != MBEDTLS_SSL_SERVER_FINISHED ) ) )
+            {
+                MBEDTLS_SSL_DEBUG_MSG( 2, ( "queuing future ChangeCipherSpec message" ) );
+                if( ( ret = ssl_hs_queue_append( ssl, 0 ) ) != 0 )
+                {
+                    MBEDTLS_SSL_DEBUG_RET( 1, "ssl_hs_queue_append", ret );
+                    return( MBEDTLS_ERR_SSL_INVALID_RECORD );
+                }
+
+                return( MBEDTLS_ERR_SSL_WANT_READ );
+            }
+#endif
             MBEDTLS_SSL_DEBUG_MSG( 1, ( "dropping unexpected ChangeCipherSpec" ) );
             return( MBEDTLS_ERR_SSL_UNEXPECTED_RECORD );
         }
@@ -4210,8 +4235,13 @@ read_record_header:
         if( rec_epoch != ssl->in_epoch &&
             rec_epoch == 1 &&
             ssl->in_msgtype == MBEDTLS_SSL_MSG_HANDSHAKE &&
-            ( ssl->state == MBEDTLS_SSL_CLIENT_CHANGE_CIPHER_SPEC ||
-              ssl->state == MBEDTLS_SSL_SERVER_CHANGE_CIPHER_SPEC ) )
+            ( ( ssl->conf->endpoint == MBEDTLS_SSL_IS_SERVER &&
+                ( ssl->state == MBEDTLS_SSL_CLIENT_CERTIFICATE ||
+                  ssl->state == MBEDTLS_SSL_CLIENT_KEY_EXCHANGE ||
+                  ssl->state == MBEDTLS_SSL_CERTIFICATE_VERIFY ||
+                  ssl->state == MBEDTLS_SSL_CLIENT_CHANGE_CIPHER_SPEC ) ) ||
+              ( ssl->conf->endpoint == MBEDTLS_SSL_IS_CLIENT &&
+                ssl->state == MBEDTLS_SSL_SERVER_CHANGE_CIPHER_SPEC ) ) )
         {
             MBEDTLS_SSL_DEBUG_MSG( 2, ( "queuing potential future Finished message" ) );
             /* queueing with seq num 0 since we do not know real seq num yet */
@@ -4828,53 +4858,55 @@ int mbedtls_ssl_parse_certificate( mbedtls_ssl_context *ssl )
 
         while( i < ssl->in_hslen )
         {
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "bad certificate message" ) );
-            mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
-                                            MBEDTLS_SSL_ALERT_MSG_DECODE_ERROR );
-            return( MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE );
-        }
+            if ( ssl->in_msg[i] != 0 )
+            {
+                MBEDTLS_SSL_DEBUG_MSG( 1, ( "bad certificate message" ) );
+                return( MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE );
+            }
 
             n = ( (unsigned int) ssl->in_msg[i + 1] << 8 )
                 | (unsigned int) ssl->in_msg[i + 2];
             i += 3;
 
-        if( n < 128 || i + n > ssl->in_hslen )
-        {
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "bad certificate message" ) );
-            mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
-                                            MBEDTLS_SSL_ALERT_MSG_DECODE_ERROR );
-            return( MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE );
-        }
+            if( n < 128 || i + n > ssl->in_hslen )
+            {
+                MBEDTLS_SSL_DEBUG_MSG( 1, ( "bad certificate message" ) );
+                mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
+                                                MBEDTLS_SSL_ALERT_MSG_DECODE_ERROR );
+                return( MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE );
+            }
 
-        ret = mbedtls_x509_crt_parse_der( ssl->session_negotiate->peer_cert,
+            ret = mbedtls_x509_crt_parse_der( ssl->session_negotiate->peer_cert,
                                   ssl->in_msg + i, n );
-        switch( ret )
-        {
-        case 0: /*ok*/
-        case MBEDTLS_ERR_X509_UNKNOWN_SIG_ALG + MBEDTLS_ERR_OID_NOT_FOUND:
-            /* Ignore certificate with an unknown algorithm: maybe a
-               prior certificate was already trusted. */
-            break;
 
-        case MBEDTLS_ERR_X509_ALLOC_FAILED:
-            alert = MBEDTLS_SSL_ALERT_MSG_INTERNAL_ERROR;
-            goto crt_parse_der_failed;
+            switch( ret )
+            {
+            case 0: /*ok*/
+            case MBEDTLS_ERR_X509_UNKNOWN_SIG_ALG + MBEDTLS_ERR_OID_NOT_FOUND:
+                /* Ignore certificate with an unknown algorithm: maybe a
+                prior certificate was already trusted. */
+                break;
 
-        case MBEDTLS_ERR_X509_UNKNOWN_VERSION:
-            alert = MBEDTLS_SSL_ALERT_MSG_UNSUPPORTED_CERT;
-            goto crt_parse_der_failed;
+            case MBEDTLS_ERR_X509_ALLOC_FAILED:
+                alert = MBEDTLS_SSL_ALERT_MSG_INTERNAL_ERROR;
+                goto crt_parse_der_failed;
 
-        default:
-            alert = MBEDTLS_SSL_ALERT_MSG_BAD_CERT;
-        crt_parse_der_failed:
-            mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL, alert );
-            MBEDTLS_SSL_DEBUG_RET( 1, " mbedtls_x509_crt_parse_der", ret );
-            return( ret );
+            case MBEDTLS_ERR_X509_UNKNOWN_VERSION:
+                alert = MBEDTLS_SSL_ALERT_MSG_UNSUPPORTED_CERT;
+                goto crt_parse_der_failed;
+
+            default:
+                alert = MBEDTLS_SSL_ALERT_MSG_BAD_CERT;
+            crt_parse_der_failed:
+                mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL, alert );
+                MBEDTLS_SSL_DEBUG_RET( 1, " mbedtls_x509_crt_parse_der", ret );
+                return( ret );
+            }
+
+            i += n;
         }
-       
+        MBEDTLS_SSL_DEBUG_CRT( 3, "peer certificate", ssl->session_negotiate->peer_cert );
     }
-
-    MBEDTLS_SSL_DEBUG_CRT( 3, "peer certificate", ssl->session_negotiate->peer_cert );
 
     /*
      * On client, make sure the server cert doesn't change during renego to
@@ -4928,6 +4960,12 @@ int mbedtls_ssl_parse_certificate( mbedtls_ssl_context *ssl )
             {
                 ca_chain = ssl->conf->ca_chain;
                 ca_crl   = ssl->conf->ca_crl;
+            }
+
+            if( ca_chain == NULL )
+            {
+                MBEDTLS_SSL_DEBUG_MSG( 1, ( "got no CA chain" ) );
+                return( MBEDTLS_ERR_SSL_CA_CHAIN_REQUIRED );
             }
 
             /*
