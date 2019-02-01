@@ -29,9 +29,13 @@
 #include "mbedtls/platform.h"
 #else
 #include <stdio.h>
-#define mbedtls_printf     printf
-#define mbedtls_snprintf   snprintf
-#endif
+#include <stdlib.h>
+#define mbedtls_printf          printf
+#define mbedtls_snprintf        snprintf
+#define mbedtls_exit            exit
+#define MBEDTLS_EXIT_SUCCESS    EXIT_SUCCESS
+#define MBEDTLS_EXIT_FAILURE    EXIT_FAILURE
+#endif /* MBEDTLS_PLATFORM_C */
 
 #if !defined(MBEDTLS_BIGNUM_C) || !defined(MBEDTLS_RSA_C) ||  \
     !defined(MBEDTLS_SHA256_C) || !defined(MBEDTLS_MD_C) || \
@@ -51,17 +55,31 @@ int main( void )
 #include <stdio.h>
 #include <string.h>
 
+#if defined(MBEDTLS_CHECK_PARAMS)
+#include "mbedtls/platform_util.h"
+void mbedtls_param_failed( const char *failure_condition,
+                           const char *file,
+                           int line )
+{
+    mbedtls_printf( "%s:%i: Input param failed - %s\n",
+                    file, line, failure_condition );
+    mbedtls_exit( MBEDTLS_EXIT_FAILURE );
+}
+#endif
+
 int main( int argc, char *argv[] )
 {
     FILE *f;
-    int ret, c;
+    int ret = 1, c;
+    int exit_code = MBEDTLS_EXIT_FAILURE;
     size_t i;
     mbedtls_rsa_context rsa;
     unsigned char hash[32];
     unsigned char buf[MBEDTLS_MPI_MAX_SIZE];
     char filename[512];
 
-    ret = 1;
+    mbedtls_rsa_init( &rsa, MBEDTLS_RSA_PKCS_V15, 0 );
+
     if( argc != 2 )
     {
         mbedtls_printf( "usage: rsa_verify <filename>\n" );
@@ -83,12 +101,11 @@ int main( int argc, char *argv[] )
         goto exit;
     }
 
-    mbedtls_rsa_init( &rsa, MBEDTLS_RSA_PKCS_V15, 0 );
-
     if( ( ret = mbedtls_mpi_read_file( &rsa.N, 16, f ) ) != 0 ||
         ( ret = mbedtls_mpi_read_file( &rsa.E, 16, f ) ) != 0 )
     {
         mbedtls_printf( " failed\n  ! mbedtls_mpi_read_file returned %d\n\n", ret );
+        fclose( f );
         goto exit;
     }
 
@@ -99,7 +116,6 @@ int main( int argc, char *argv[] )
     /*
      * Extract the RSA signature from the text file
      */
-    ret = 1;
     mbedtls_snprintf( filename, sizeof(filename), "%s.sig", argv[1] );
 
     if( ( f = fopen( filename, "rb" ) ) == NULL )
@@ -145,16 +161,18 @@ int main( int argc, char *argv[] )
 
     mbedtls_printf( "\n  . OK (the signature is valid)\n\n" );
 
-    ret = 0;
+    exit_code = MBEDTLS_EXIT_SUCCESS;
 
 exit:
+
+    mbedtls_rsa_free( &rsa );
 
 #if defined(_WIN32)
     mbedtls_printf( "  + Press Enter to exit this program.\n" );
     fflush( stdout ); getchar();
 #endif
 
-    return( ret );
+    return( exit_code );
 }
 #endif /* MBEDTLS_BIGNUM_C && MBEDTLS_RSA_C && MBEDTLS_SHA256_C &&
           MBEDTLS_FS_IO */

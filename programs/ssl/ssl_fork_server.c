@@ -29,9 +29,14 @@
 #include "mbedtls/platform.h"
 #else
 #include <stdio.h>
-#define mbedtls_fprintf    fprintf
-#define mbedtls_printf     printf
-#endif
+#include <stdlib.h>
+#define mbedtls_fprintf         fprintf
+#define mbedtls_printf          printf
+#define mbedtls_time_t          time_t
+#define mbedtls_exit            exit
+#define MBEDTLS_EXIT_SUCCESS    EXIT_SUCCESS
+#define MBEDTLS_EXIT_FAILURE    EXIT_FAILURE
+#endif /* MBEDTLS_PLATFORM_C */
 
 #if !defined(MBEDTLS_BIGNUM_C) || !defined(MBEDTLS_CERTS_C) ||    \
     !defined(MBEDTLS_ENTROPY_C) || !defined(MBEDTLS_SSL_TLS_C) || \
@@ -65,7 +70,7 @@ int main( void )
 #include "mbedtls/certs.h"
 #include "mbedtls/x509.h"
 #include "mbedtls/ssl.h"
-#include "mbedtls/net.h"
+#include "mbedtls/net_sockets.h"
 #include "mbedtls/timing.h"
 
 #include <string.h>
@@ -82,6 +87,18 @@ int main( void )
 
 #define DEBUG_LEVEL 0
 
+#if defined(MBEDTLS_CHECK_PARAMS)
+#include "mbedtls/platform_util.h"
+void mbedtls_param_failed( const char *failure_condition,
+                           const char *file,
+                           int line )
+{
+    mbedtls_printf( "%s:%i: Input param failed - %s\n",
+                    file, line, failure_condition );
+    mbedtls_exit( MBEDTLS_EXIT_FAILURE );
+}
+#endif
+
 static void my_debug( void *ctx, int level,
                       const char *file, int line,
                       const char *str )
@@ -94,7 +111,8 @@ static void my_debug( void *ctx, int level,
 
 int main( void )
 {
-    int ret, len, cnt = 0, pid;
+    int ret = 1, len, cnt = 0, pid;
+    int exit_code = MBEDTLS_EXIT_FAILURE;
     mbedtls_net_context listen_fd, client_fd;
     unsigned char buf[1024];
     const char *pers = "ssl_fork_server";
@@ -127,7 +145,7 @@ int main( void )
                                (const unsigned char *) pers,
                                strlen( pers ) ) ) != 0 )
     {
-        mbedtls_printf( " failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret );
+        mbedtls_printf( " failed!  mbedtls_ctr_drbg_seed returned %d\n\n", ret );
         goto exit;
     }
 
@@ -148,7 +166,7 @@ int main( void )
                           mbedtls_test_srv_crt_len );
     if( ret != 0 )
     {
-        mbedtls_printf( " failed\n  !  mbedtls_x509_crt_parse returned %d\n\n", ret );
+        mbedtls_printf( " failed!  mbedtls_x509_crt_parse returned %d\n\n", ret );
         goto exit;
     }
 
@@ -156,7 +174,7 @@ int main( void )
                           mbedtls_test_cas_pem_len );
     if( ret != 0 )
     {
-        mbedtls_printf( " failed\n  !  mbedtls_x509_crt_parse returned %d\n\n", ret );
+        mbedtls_printf( " failed!  mbedtls_x509_crt_parse returned %d\n\n", ret );
         goto exit;
     }
 
@@ -164,7 +182,7 @@ int main( void )
                           mbedtls_test_srv_key_len, NULL, 0 );
     if( ret != 0 )
     {
-        mbedtls_printf( " failed\n  !  mbedtls_pk_parse_key returned %d\n\n", ret );
+        mbedtls_printf( " failed!  mbedtls_pk_parse_key returned %d\n\n", ret );
         goto exit;
     }
 
@@ -181,7 +199,7 @@ int main( void )
                     MBEDTLS_SSL_TRANSPORT_STREAM,
                     MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
     {
-        mbedtls_printf( " failed\n  ! mbedtls_ssl_config_defaults returned %d\n\n", ret );
+        mbedtls_printf( " failed!  mbedtls_ssl_config_defaults returned %d\n\n", ret );
         goto exit;
     }
 
@@ -191,7 +209,7 @@ int main( void )
     mbedtls_ssl_conf_ca_chain( &conf, srvcert.next, NULL );
     if( ( ret = mbedtls_ssl_conf_own_cert( &conf, &srvcert, &pkey ) ) != 0 )
     {
-        mbedtls_printf( " failed\n  ! mbedtls_ssl_conf_own_cert returned %d\n\n", ret );
+        mbedtls_printf( " failed!  mbedtls_ssl_conf_own_cert returned %d\n\n", ret );
         goto exit;
     }
 
@@ -205,7 +223,7 @@ int main( void )
 
     if( ( ret = mbedtls_net_bind( &listen_fd, NULL, "4433", MBEDTLS_NET_PROTO_TCP ) ) != 0 )
     {
-        mbedtls_printf( " failed\n  ! mbedtls_net_bind returned %d\n\n", ret );
+        mbedtls_printf( " failed!  mbedtls_net_bind returned %d\n\n", ret );
         goto exit;
     }
 
@@ -219,96 +237,101 @@ int main( void )
         mbedtls_net_init( &client_fd );
         mbedtls_ssl_init( &ssl );
 
-        mbedtls_printf( "  . Waiting for a remote connection ..." );
+        mbedtls_printf( "  . Waiting for a remote connection ...\n" );
         fflush( stdout );
 
         if( ( ret = mbedtls_net_accept( &listen_fd, &client_fd,
                                         NULL, 0, NULL ) ) != 0 )
         {
-            mbedtls_printf( " failed\n  ! mbedtls_net_accept returned %d\n\n", ret );
+            mbedtls_printf( " failed!  mbedtls_net_accept returned %d\n\n", ret );
             goto exit;
         }
-
-        mbedtls_printf( " ok\n" );
 
         /*
          * 3.5. Forking server thread
          */
 
-        pid = fork();
-
         mbedtls_printf( "  . Forking to handle connection ..." );
         fflush( stdout );
 
+        pid = fork();
+
         if( pid < 0 )
         {
-            mbedtls_printf(" failed\n  ! fork returned %d\n\n", pid );
+            mbedtls_printf(" failed!  fork returned %d\n\n", pid );
             goto exit;
         }
 
-        mbedtls_printf( " ok\n" );
-
         if( pid != 0 )
         {
+            mbedtls_printf( " ok\n" );
+
             if( ( ret = mbedtls_ctr_drbg_reseed( &ctr_drbg,
                                          (const unsigned char *) "parent",
                                          6 ) ) != 0 )
             {
-                mbedtls_printf( " failed\n  ! mbedtls_ctr_drbg_reseed returned %d\n", ret );
+                mbedtls_printf( " failed!  mbedtls_ctr_drbg_reseed returned %d\n\n", ret );
                 goto exit;
             }
 
-            mbedtls_net_free( &client_fd );
             continue;
         }
 
-        mbedtls_net_free( &listen_fd );
+        mbedtls_net_init( &listen_fd );
+
+        pid = getpid();
 
         /*
          * 4. Setup stuff
          */
-        mbedtls_printf( "  . Setting up the SSL data...." );
+        mbedtls_printf( "pid %d: Setting up the SSL data.\n", pid );
         fflush( stdout );
 
         if( ( ret = mbedtls_ctr_drbg_reseed( &ctr_drbg,
                                      (const unsigned char *) "child",
                                      5 ) ) != 0 )
         {
-            mbedtls_printf( " failed\n  ! mbedtls_ctr_drbg_reseed returned %d\n", ret );
+            mbedtls_printf(
+                    "pid %d: SSL setup failed!  mbedtls_ctr_drbg_reseed returned %d\n\n",
+                    pid, ret );
             goto exit;
         }
 
         if( ( ret = mbedtls_ssl_setup( &ssl, &conf ) ) != 0 )
         {
-            mbedtls_printf( " failed\n  ! mbedtls_ssl_setup returned %d\n\n", ret );
+            mbedtls_printf(
+                    "pid %d: SSL setup failed!  mbedtls_ssl_setup returned %d\n\n",
+                    pid, ret );
             goto exit;
         }
 
         mbedtls_ssl_set_bio( &ssl, &client_fd, mbedtls_net_send, mbedtls_net_recv, NULL );
 
-        mbedtls_printf( " ok\n" );
+        mbedtls_printf( "pid %d: SSL setup ok\n", pid );
 
         /*
          * 5. Handshake
          */
-        mbedtls_printf( "  . Performing the SSL/TLS handshake..." );
+        mbedtls_printf( "pid %d: Performing the SSL/TLS handshake.\n", pid );
         fflush( stdout );
 
         while( ( ret = mbedtls_ssl_handshake( &ssl ) ) != 0 )
         {
             if( ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE )
             {
-                mbedtls_printf( " failed\n  ! mbedtls_ssl_handshake returned %d\n\n", ret );
+                mbedtls_printf(
+                        "pid %d: SSL handshake failed!  mbedtls_ssl_handshake returned %d\n\n",
+                        pid, ret );
                 goto exit;
             }
         }
 
-        mbedtls_printf( " ok\n" );
+        mbedtls_printf( "pid %d: SSL handshake ok\n", pid );
 
         /*
          * 6. Read the HTTP Request
          */
-        mbedtls_printf( "  < Read from client:" );
+        mbedtls_printf( "pid %d: Start reading from client.\n", pid );
         fflush( stdout );
 
         do
@@ -325,15 +348,15 @@ int main( void )
                 switch( ret )
                 {
                     case MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY:
-                        mbedtls_printf( " connection was closed gracefully\n" );
+                        mbedtls_printf( "pid %d: connection was closed gracefully\n", pid );
                         break;
 
                     case MBEDTLS_ERR_NET_CONN_RESET:
-                        mbedtls_printf( " connection was reset by peer\n" );
+                        mbedtls_printf( "pid %d: connection was reset by peer\n", pid );
                         break;
 
                     default:
-                        mbedtls_printf( " mbedtls_ssl_read returned %d\n", ret );
+                        mbedtls_printf( "pid %d: mbedtls_ssl_read returned %d\n", pid, ret );
                         break;
                 }
 
@@ -341,7 +364,7 @@ int main( void )
             }
 
             len = ret;
-            mbedtls_printf( " %d bytes read\n\n%s", len, (char *) buf );
+            mbedtls_printf( "pid %d: %d bytes read\n\n%s", pid, len, (char *) buf );
 
             if( ret > 0 )
                 break;
@@ -351,7 +374,7 @@ int main( void )
         /*
          * 7. Write the 200 Response
          */
-        mbedtls_printf( "  > Write to client:" );
+        mbedtls_printf( "pid %d: Start writing to client.\n", pid );
         fflush( stdout );
 
         len = sprintf( (char *) buf, HTTP_RESPONSE,
@@ -363,18 +386,21 @@ int main( void )
             {
                 if( ret == MBEDTLS_ERR_NET_CONN_RESET )
                 {
-                    mbedtls_printf( " failed\n  ! peer closed the connection\n\n" );
+                    mbedtls_printf(
+                            "pid %d: Write failed!  peer closed the connection\n\n", pid );
                     goto exit;
                 }
 
                 if( ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE )
                 {
-                    mbedtls_printf( " failed\n  ! mbedtls_ssl_write returned %d\n\n", ret );
+                    mbedtls_printf(
+                            "pid %d: Write failed!  mbedtls_ssl_write returned %d\n\n",
+                            pid, ret );
                     goto exit;
                 }
             }
             len = ret;
-            mbedtls_printf( " %d bytes written\n\n%s\n", len, (char *) buf );
+            mbedtls_printf( "pid %d: %d bytes written\n\n%s\n", pid, len, (char *) buf );
 
             mbedtls_net_usleep( 1000000 );
         }
@@ -382,6 +408,8 @@ int main( void )
         mbedtls_ssl_close_notify( &ssl );
         goto exit;
     }
+
+    exit_code = MBEDTLS_EXIT_SUCCESS;
 
 exit:
     mbedtls_net_free( &client_fd );
@@ -399,7 +427,7 @@ exit:
     fflush( stdout ); getchar();
 #endif
 
-    return( ret );
+    return( exit_code );
 }
 #endif /* MBEDTLS_BIGNUM_C && MBEDTLS_CERTS_C && MBEDTLS_ENTROPY_C &&
           MBEDTLS_SSL_TLS_C && MBEDTLS_SSL_SRV_C && MBEDTLS_NET_C &&

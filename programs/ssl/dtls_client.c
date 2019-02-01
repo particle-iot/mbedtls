@@ -31,13 +31,16 @@
 #include <stdio.h>
 #define mbedtls_printf     printf
 #define mbedtls_fprintf    fprintf
+#define mbedtls_exit            exit
+#define MBEDTLS_EXIT_SUCCESS    EXIT_SUCCESS
+#define MBEDTLS_EXIT_FAILURE    EXIT_FAILURE
 #endif
 
 #if !defined(MBEDTLS_SSL_CLI_C) || !defined(MBEDTLS_SSL_PROTO_DTLS) ||    \
     !defined(MBEDTLS_NET_C)  || !defined(MBEDTLS_TIMING_C) ||             \
     !defined(MBEDTLS_ENTROPY_C) || !defined(MBEDTLS_CTR_DRBG_C) ||        \
     !defined(MBEDTLS_X509_CRT_PARSE_C) || !defined(MBEDTLS_RSA_C) ||      \
-    !defined(MBEDTLS_CERTS_C)
+    !defined(MBEDTLS_CERTS_C) || !defined(MBEDTLS_PEM_PARSE_C)
 int main( void )
 {
     mbedtls_printf( "MBEDTLS_SSL_CLI_C and/or MBEDTLS_SSL_PROTO_DTLS and/or "
@@ -51,7 +54,7 @@ int main( void )
 
 #include <string.h>
 
-#include "mbedtls/net.h"
+#include "mbedtls/net_sockets.h"
 #include "mbedtls/debug.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/entropy.h"
@@ -60,15 +63,36 @@ int main( void )
 #include "mbedtls/certs.h"
 #include "mbedtls/timing.h"
 
+/* Uncomment out the following line to default to IPv4 and disable IPv6 */
+//#define FORCE_IPV4
+
 #define SERVER_PORT "4433"
 #define SERVER_NAME "localhost"
-#define SERVER_ADDR "127.0.0.1" /* forces IPv4 */
+
+#ifdef FORCE_IPV4
+#define SERVER_ADDR "127.0.0.1"     /* Forces IPv4 */
+#else
+#define SERVER_ADDR "::1"
+#endif
+
 #define MESSAGE     "Echo this"
 
 #define READ_TIMEOUT_MS 1000
 #define MAX_RETRY       5
 
 #define DEBUG_LEVEL 0
+
+#if defined(MBEDTLS_CHECK_PARAMS)
+#include "mbedtls/platform_util.h"
+void mbedtls_param_failed( const char *failure_condition,
+                           const char *file,
+                           int line )
+{
+    mbedtls_printf( "%s:%i: Input param failed - %s\n",
+                    file, line, failure_condition );
+    mbedtls_exit( MBEDTLS_EXIT_FAILURE );
+}
+#endif
 
 static void my_debug( void *ctx, int level,
                       const char *file, int line,
@@ -203,7 +227,7 @@ int main( int argc, char *argv[] )
     /*
      * 4. Handshake
      */
-    mbedtls_printf( "  . Performing the SSL/TLS handshake..." );
+    mbedtls_printf( "  . Performing the DTLS handshake..." );
     fflush( stdout );
 
     do ret = mbedtls_ssl_handshake( &ssl );

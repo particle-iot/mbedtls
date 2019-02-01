@@ -29,9 +29,15 @@
 #include "mbedtls/platform.h"
 #else
 #include <stdio.h>
-#define mbedtls_fprintf    fprintf
-#define mbedtls_printf     printf
-#endif
+#include <stdlib.h>
+#define mbedtls_time            time
+#define mbedtls_time_t          time_t
+#define mbedtls_fprintf         fprintf
+#define mbedtls_printf          printf
+#define mbedtls_exit            exit
+#define MBEDTLS_EXIT_SUCCESS    EXIT_SUCCESS
+#define MBEDTLS_EXIT_FAILURE    EXIT_FAILURE
+#endif /* MBEDTLS_PLATFORM_C */
 
 #if !defined(MBEDTLS_BIGNUM_C) || !defined(MBEDTLS_ENTROPY_C) ||  \
     !defined(MBEDTLS_SSL_TLS_C) || !defined(MBEDTLS_SSL_CLI_C) || \
@@ -49,7 +55,7 @@ int main( void )
 }
 #else
 
-#include "mbedtls/net.h"
+#include "mbedtls/net_sockets.h"
 #include "mbedtls/debug.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/entropy.h"
@@ -65,6 +71,18 @@ int main( void )
 
 #define DEBUG_LEVEL 1
 
+#if defined(MBEDTLS_CHECK_PARAMS)
+#include "mbedtls/platform_util.h"
+void mbedtls_param_failed( const char *failure_condition,
+                           const char *file,
+                           int line )
+{
+    mbedtls_printf( "%s:%i: Input param failed - %s\n",
+                    file, line, failure_condition );
+    mbedtls_exit( MBEDTLS_EXIT_FAILURE );
+}
+#endif
+
 static void my_debug( void *ctx, int level,
                       const char *file, int line,
                       const char *str )
@@ -77,7 +95,8 @@ static void my_debug( void *ctx, int level,
 
 int main( void )
 {
-    int ret, len;
+    int ret = 1, len;
+    int exit_code = MBEDTLS_EXIT_FAILURE;
     mbedtls_net_context server_fd;
     uint32_t flags;
     unsigned char buf[1024];
@@ -177,7 +196,7 @@ int main( void )
         goto exit;
     }
 
-    if( ( ret = mbedtls_ssl_set_hostname( &ssl, "mbed TLS Server 1" ) ) != 0 )
+    if( ( ret = mbedtls_ssl_set_hostname( &ssl, SERVER_NAME ) ) != 0 )
     {
         mbedtls_printf( " failed\n  ! mbedtls_ssl_set_hostname returned %d\n\n", ret );
         goto exit;
@@ -278,10 +297,12 @@ int main( void )
 
     mbedtls_ssl_close_notify( &ssl );
 
+    exit_code = MBEDTLS_EXIT_SUCCESS;
+
 exit:
 
 #ifdef MBEDTLS_ERROR_C
-    if( ret != 0 )
+    if( exit_code != MBEDTLS_EXIT_SUCCESS )
     {
         char error_buf[100];
         mbedtls_strerror( ret, error_buf, 100 );
@@ -302,7 +323,7 @@ exit:
     fflush( stdout ); getchar();
 #endif
 
-    return( ret );
+    return( exit_code );
 }
 #endif /* MBEDTLS_BIGNUM_C && MBEDTLS_ENTROPY_C && MBEDTLS_SSL_TLS_C &&
           MBEDTLS_SSL_CLI_C && MBEDTLS_NET_C && MBEDTLS_RSA_C &&
