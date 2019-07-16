@@ -129,6 +129,7 @@
 #define MBEDTLS_ERR_SSL_UNEXPECTED_CID                    -0x6000  /**< An encrypted DTLS-frame with an unexpected CID was received. */
 #define MBEDTLS_ERR_SSL_VERSION_MISMATCH                  -0x5F00  /**< An operation failed due to an unexpected version or configuration. */
 #define MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS                -0x7000  /**< A cryptographic operation is in progress. Try again later. */
+#define MBEDTLS_ERR_SSL_NO_CERTIFICATE_TYPE_CHOSEN        -0x7FFF  /**< The server has no certificate types in common with the client */
 
 /*
  * Various constants
@@ -388,6 +389,9 @@
 
 #define MBEDTLS_TLS_EXT_ALPN                        16
 
+#define MBEDTLS_TLS_EXT_CLIENT_CERTIFICATE_TYPE     19
+#define MBEDTLS_TLS_EXT_SERVER_CERTIFICATE_TYPE     20
+
 #define MBEDTLS_TLS_EXT_ENCRYPT_THEN_MAC            22 /* 0x16 */
 #define MBEDTLS_TLS_EXT_EXTENDED_MASTER_SECRET  0x0017 /* 23 */
 
@@ -401,6 +405,14 @@
 #define MBEDTLS_TLS_EXT_ECJPAKE_KKPP               256 /* experimental */
 
 #define MBEDTLS_TLS_EXT_RENEGOTIATION_INFO      0xFF01
+
+/**
+ * TLS Certificate Types
+ * See RFC 7250
+ */
+#define MBEDTLS_TLS_CERT_TYPE_NONE            -1
+#define MBEDTLS_TLS_CERT_TYPE_X509            0
+#define MBEDTLS_TLS_CERT_TYPE_RAW_PUBLIC_KEY  2
 
 /*
  * Size defines
@@ -1130,6 +1142,10 @@ struct mbedtls_ssl_config
                                              *   record with unexpected CID
                                              *   should lead to failure.    */
 #endif /* MBEDTLS_SSL_DTLS_CONNECTION_ID */
+#if defined(MBEDTLS_SSL_RAW_PUBLIC_KEY_SUPPORT)
+    const int *server_certificate_type_list;
+    const int *client_certificate_type_list;
+#endif
 };
 
 
@@ -2948,6 +2964,13 @@ void mbedtls_ssl_conf_curves( mbedtls_ssl_config *conf,
 void mbedtls_ssl_conf_sig_hashes( mbedtls_ssl_config *conf,
                                   const int *hashes );
 #endif /* MBEDTLS_KEY_EXCHANGE_WITH_CERT_ENABLED */
+
+#if defined(MBEDTLS_SSL_RAW_PUBLIC_KEY_SUPPORT)
+void mbedtls_ssl_conf_client_certificate_types( mbedtls_ssl_config *conf,
+                                                const int *cert_types );
+void mbedtls_ssl_conf_server_certificate_types( mbedtls_ssl_config *conf,
+                                                const int *cert_types );
+#endif /* MBEDTLS_SSL_RAW_PUBLIC_KEY_SUPPORT */
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
 /**
