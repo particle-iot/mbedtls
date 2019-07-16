@@ -525,6 +525,8 @@ void mbedtls_strerror( int ret, char *buf, size_t buflen )
             mbedtls_snprintf( buf, buflen, "SSL - Internal-only message signaling that a message arrived early" );
         if( use_ret == -(MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS) )
             mbedtls_snprintf( buf, buflen, "SSL - A cryptographic operation is in progress. Try again later" );
+        if( use_ret == -(MBEDTLS_ERR_SSL_NO_CERTIFICATE_TYPE_CHOSEN) )
+            mbedtls_snprintf( buf, buflen, "SSL - The server has no certificate types in common with the client" );
 #endif /* MBEDTLS_SSL_TLS_C */
 
 #if defined(MBEDTLS_X509_USE_C) || defined(MBEDTLS_X509_CREATE_C)
