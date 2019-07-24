@@ -2225,7 +2225,8 @@ have_ciphersuite:
     /* Debugging-only output for testsuite */
 #if defined(MBEDTLS_DEBUG_C)                         && \
     defined(MBEDTLS_SSL_PROTO_TLS1_2)                && \
-    defined(MBEDTLS_KEY_EXCHANGE_WITH_CERT_ENABLED)
+    defined(MBEDTLS_KEY_EXCHANGE_WITH_CERT_ENABLED)  && \
+    (!defined(MBEDTLS_DEBUG_COMPILE_TIME_LEVEL) || MBEDTLS_DEBUG_COMPILE_TIME_LEVEL >= 3)
     if( ssl->minor_ver == MBEDTLS_SSL_MINOR_VERSION_3 )
     {
         mbedtls_pk_type_t sig_alg = mbedtls_ssl_get_ciphersuite_sig_alg( ciphersuite_info );

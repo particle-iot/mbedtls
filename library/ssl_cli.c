@@ -3234,7 +3234,7 @@ static int ssl_parse_certificate_request( mbedtls_ssl_context *ssl )
     {
         size_t sig_alg_len = ( ( buf[mbedtls_ssl_hs_hdr_len( ssl ) + 1 + n] <<  8 )
                              | ( buf[mbedtls_ssl_hs_hdr_len( ssl ) + 2 + n]       ) );
-#if defined(MBEDTLS_DEBUG_C)
+#if defined(MBEDTLS_DEBUG_C) && (!defined(MBEDTLS_DEBUG_COMPILE_TIME_LEVEL) || MBEDTLS_DEBUG_COMPILE_TIME_LEVEL >= 3)
         unsigned char* sig_alg;
         size_t i;
 #endif
@@ -3259,7 +3259,7 @@ static int ssl_parse_certificate_request( mbedtls_ssl_context *ssl )
             return( MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE_REQUEST );
         }
 
-#if defined(MBEDTLS_DEBUG_C)
+#if defined(MBEDTLS_DEBUG_C) && (!defined(MBEDTLS_DEBUG_COMPILE_TIME_LEVEL) || MBEDTLS_DEBUG_COMPILE_TIME_LEVEL >= 3)
         sig_alg = buf + mbedtls_ssl_hs_hdr_len( ssl ) + 3 + n;
         for( i = 0; i < sig_alg_len; i += 2 )
         {
