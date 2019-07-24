@@ -40,6 +40,8 @@
 
 #define MBEDTLS_DEBUG_STRIP_PARENS( ... )   __VA_ARGS__
 
+#if !defined(MBEDTLS_DEBUG_COMPILE_TIME_LEVEL) || MBEDTLS_DEBUG_COMPILE_TIME_LEVEL >= 4
+
 #define MBEDTLS_SSL_DEBUG_MSG( level, args )                    \
     mbedtls_debug_print_msg( ssl, level, __FILE__, __LINE__,    \
                              MBEDTLS_DEBUG_STRIP_PARENS args )
@@ -65,7 +67,7 @@
 #  define MBEDTLS_SSL_DEBUG_CRT( level, text, crt )              \
     mbedtls_debug_print_crt( ssl, level, __FILE__, __LINE__, text, crt )
 # else
-#  define MBEDTLS_SSL_DEBUG_CRT( level, text, crt )
+#  define MBEDTLS_SSL_DEBUG_CRT( level, text, crt )     do { } while( 0 )
 # endif /* !MBEDTLS_X509_INFO_DISABLE */
 #endif
 
@@ -73,6 +75,12 @@
 #define MBEDTLS_SSL_DEBUG_ECDH( level, ecdh, attr )               \
     mbedtls_debug_printf_ecdh( ssl, level, __FILE__, __LINE__, ecdh, attr )
 #endif
+
+#else // !defined(MBEDTLS_DEBUG_COMPILE_TIME_LEVEL) || MBEDTLS_DEBUG_COMPILE_TIME_LEVEL >= 4
+
+#include "debug_level.h"
+
+#endif // !defined(MBEDTLS_DEBUG_COMPILE_TIME_LEVEL) || MBEDTLS_DEBUG_COMPILE_TIME_LEVEL >= 4
 
 #else /* MBEDTLS_DEBUG_C */
 
