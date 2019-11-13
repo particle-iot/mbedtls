@@ -164,6 +164,7 @@ typedef struct {
     const char          *short_name;
 } oid_x520_attr_t;
 
+#ifndef MBEDTLS_OID_OPTIMIZE_STRINGS
 static const oid_x520_attr_t oid_x520_attr_type[] =
 {
     {
@@ -248,10 +249,9 @@ static const oid_x520_attr_t oid_x520_attr_type[] =
     }
 };
 
-#ifndef MBEDTLS_OID_OPTIMIZE_STRINGS
 FN_OID_TYPED_FROM_ASN1(oid_x520_attr_t, x520_attr, oid_x520_attr_type)
 FN_OID_GET_ATTR1(mbedtls_oid_get_attr_short_name, oid_x520_attr_t, x520_attr, const char *, short_name)
-#endif
+#endif // MBEDTLS_OID_OPTIMIZE_STRINGS
 
 /*
  * For X509 extensions
@@ -292,6 +292,7 @@ static const oid_x509_ext_t oid_x509_ext[] =
 FN_OID_TYPED_FROM_ASN1(oid_x509_ext_t, x509_ext, oid_x509_ext)
 FN_OID_GET_ATTR1(mbedtls_oid_get_x509_ext_type, oid_x509_ext_t, x509_ext, int, ext_type)
 
+#ifndef MBEDTLS_OID_OPTIMIZE_STRINGS
 static const mbedtls_oid_descriptor_t oid_ext_key_usage[] =
 {
     { ADD_LEN( MBEDTLS_OID_SERVER_AUTH ),      "id-kp-serverAuth",      "TLS Web Server Authentication" },
@@ -303,10 +304,9 @@ static const mbedtls_oid_descriptor_t oid_ext_key_usage[] =
     { NULL, 0, NULL, NULL },
 };
 
-#ifndef MBEDTLS_OID_OPTIMIZE_STRINGS
 FN_OID_TYPED_FROM_ASN1(mbedtls_oid_descriptor_t, ext_key_usage, oid_ext_key_usage)
 FN_OID_GET_ATTR1(mbedtls_oid_get_extended_key_usage, mbedtls_oid_descriptor_t, ext_key_usage, const char *, description)
-#endif
+#endif // MBEDTLS_OID_OPTIMIZE_STRINGS
 #endif /* MBEDTLS_X509_USE_C || MBEDTLS_X509_CREATE_C */
 
 #if defined(MBEDTLS_MD_C)
