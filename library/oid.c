@@ -555,6 +555,7 @@ typedef struct {
     mbedtls_cipher_type_t       cipher_alg;
 } oid_cipher_alg_t;
 
+#ifndef MBEDTLS_OID_OPTIMIZE_STRINGS
 static const oid_cipher_alg_t oid_cipher_alg[] =
 {
     {
@@ -571,7 +572,6 @@ static const oid_cipher_alg_t oid_cipher_alg[] =
     },
 };
 
-#ifndef MBEDTLS_OID_OPTIMIZE_STRINGS
 FN_OID_TYPED_FROM_ASN1(oid_cipher_alg_t, cipher_alg, oid_cipher_alg)
 FN_OID_GET_ATTR1(mbedtls_oid_get_cipher_alg, oid_cipher_alg_t, cipher_alg, mbedtls_cipher_type_t, cipher_alg)
 #endif
