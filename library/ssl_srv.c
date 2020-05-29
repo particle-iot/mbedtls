@@ -886,6 +886,8 @@ static int ssl_pick_cert( mbedtls_ssl_context *ssl,
                           const mbedtls_ssl_ciphersuite_t * ciphersuite_info )
 {
     mbedtls_ssl_key_cert *cur, *list, *fallback = NULL;
+    mbedtls_x509_crt* cert;
+    mbedtls_pk_context* key;
     mbedtls_pk_type_t pk_alg =
         mbedtls_ssl_get_ciphersuite_sig_pk_alg( ciphersuite_info );
     uint32_t flags;
@@ -911,10 +913,28 @@ static int ssl_pick_cert( mbedtls_ssl_context *ssl,
     for( cur = list; cur != NULL; cur = cur->next )
     {
         flags = 0;
-        MBEDTLS_SSL_DEBUG_CRT( 3, "candidate certificate chain, certificate",
-                          cur->cert );
+#ifdef MBEDTLS_SSL_RAW_PUBLIC_KEY_SUPPORT
+        /*
+         * The server's certificate is not necessarily valid if raw public keys
+         * are used for authentication
+         */
+        if( cur->cert == NULL ||
+            mbedtls_pk_get_type(&cur->cert->pk) == MBEDTLS_PK_NONE )
+        {
+            MBEDTLS_SSL_DEBUG_MSG( 3, ( "candidate certificate type: raw public key" ) );
+            cert = NULL;
+            key = cur->key;
+        }
+        else
+#endif /* MBEDTLS_SSL_RAW_PUBLIC_KEY_SUPPORT */
+        {
+            cert = cur->cert;
+            key = &cur->cert->pk;
+            MBEDTLS_SSL_DEBUG_CRT( 3, "candidate certificate chain, certificate",
+                              cert );
+        }
 
-        if( ! mbedtls_pk_can_do( &cur->cert->pk, pk_alg ) )
+        if( ! mbedtls_pk_can_do( key, pk_alg ) )
         {
             MBEDTLS_SSL_DEBUG_MSG( 3, ( "certificate mismatch: key type" ) );
             continue;
@@ -928,7 +948,8 @@ static int ssl_pick_cert( mbedtls_ssl_context *ssl,
          * different uses based on keyUsage, eg if they want to avoid signing
          * and decrypting with the same RSA key.
          */
-        if( mbedtls_ssl_check_cert_usage( cur->cert, ciphersuite_info,
+        if( cert != NULL &&
+            mbedtls_ssl_check_cert_usage( cert, ciphersuite_info,
                                   MBEDTLS_SSL_IS_SERVER, &flags ) != 0 )
         {
             MBEDTLS_SSL_DEBUG_MSG( 3, ( "certificate mismatch: "
@@ -938,7 +959,7 @@ static int ssl_pick_cert( mbedtls_ssl_context *ssl,
 
 #if defined(MBEDTLS_ECDSA_C)
         if( pk_alg == MBEDTLS_PK_ECDSA &&
-            ssl_check_key_curve( &cur->cert->pk, ssl->handshake->curves ) != 0 )
+            ssl_check_key_curve( key, ssl->handshake->curves ) != 0 )
         {
             MBEDTLS_SSL_DEBUG_MSG( 3, ( "certificate mismatch: elliptic curve" ) );
             continue;
@@ -950,8 +971,9 @@ static int ssl_pick_cert( mbedtls_ssl_context *ssl,
          * present them a SHA-higher cert rather than failing if it's the only
          * one we got that satisfies the other conditions.
          */
-        if( ssl->minor_ver < MBEDTLS_SSL_MINOR_VERSION_3 &&
-            cur->cert->sig_md != MBEDTLS_MD_SHA1 )
+        if( cert != NULL &&
+            ssl->minor_ver < MBEDTLS_SSL_MINOR_VERSION_3 &&
+            cert->sig_md != MBEDTLS_MD_SHA1 )
         {
             if( fallback == NULL )
                 fallback = cur;
@@ -973,8 +995,18 @@ static int ssl_pick_cert( mbedtls_ssl_context *ssl,
     if( cur != NULL )
     {
         ssl->handshake->key_cert = cur;
-        MBEDTLS_SSL_DEBUG_CRT( 3, "selected certificate chain, certificate",
-                          ssl->handshake->key_cert->cert );
+#ifdef MBEDTLS_SSL_RAW_PUBLIC_KEY_SUPPORT
+        if( cur->cert == NULL ||
+            mbedtls_pk_get_type(&cur->cert->pk) == MBEDTLS_PK_NONE )
+        {
+            MBEDTLS_SSL_DEBUG_MSG( 3, ( "selected certificate type: raw public key" ) );
+        }
+        else
+#endif
+        {
+            MBEDTLS_SSL_DEBUG_CRT( 3, "selected certificate chain, certificate",
+                              cur->cert );
+        }
         return( 0 );
     }
 
