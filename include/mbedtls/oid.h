@@ -443,8 +443,10 @@ typedef struct mbedtls_oid_descriptor_t
 {
     const char *asn1;               /*!< OID ASN.1 representation       */
     size_t asn1_len;                /*!< length of asn1                 */
+#if !(defined(MBEDTLS_OID_OPTIMIZE_STRINGS) && defined(MBEDTLS_OID_OPTIMIZE_STRINGS_TEST))
     const char *name;               /*!< official name (e.g. from RFC)  */
     const char *description;        /*!< human friendly description     */
+#endif // !(defined(MBEDTLS_OID_OPTIMIZE_STRINGS) && defined(MBEDTLS_OID_OPTIMIZE_STRINGS_TEST))
 } mbedtls_oid_descriptor_t;
 
 /**

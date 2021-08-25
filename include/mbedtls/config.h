@@ -2802,6 +2802,15 @@
 // #define MBEDTLS_OID_OPTIMIZE_STRINGS
 
 /**
+ * \def MBEDTLS_OID_OPTIMIZE_STRINGS_TEST
+ *
+ * Requires MBEDTLS_OID_OPTIMIZE_STRINGS. Tests that optimized out short name and description
+ * are not accessed anywhere.
+ *
+ */
+// #define MBEDTLS_OID_OPTIMIZE_STRINGS_TEST
+
+/**
  * \def MBEDTLS_PADLOCK_C
  *
  * Enable VIA Padlock support on x86.
