@@ -25,10 +25,6 @@
 #include MBEDTLS_CONFIG_FILE
 #endif
 
-#if defined(MBEDTLS_ERROR_STRERROR_DUMMY)
-#include <string.h>
-#endif
-
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
 #else
@@ -39,6 +35,7 @@
 #if defined(MBEDTLS_ERROR_C)
 
 #include <stdio.h>
+#include <string.h>
 
 #if defined(MBEDTLS_AES_C)
 #include "mbedtls/aes.h"
