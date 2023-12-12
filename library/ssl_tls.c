@@ -2272,6 +2272,7 @@ static int ssl_check_peer_crt_unchanged( mbedtls_ssl_context *ssl,
 #endif /* MBEDTLS_SSL_KEEP_PEER_CERTIFICATE */
 #endif /* MBEDTLS_SSL_RENEGOTIATION && MBEDTLS_SSL_CLI_C */
 
+#if !defined(MBEDTLS_SSL_DISABLE_PARSE_CERTIFICATE)
 /*
  * Once the certificate message is read, parse it into a cert chain and
  * perform basic checks, but leave actual verification to the caller
@@ -2446,6 +2447,7 @@ static int ssl_parse_certificate_chain( mbedtls_ssl_context *ssl,
     }
     return( 0 );
 }
+#endif // !defined(MBEDTLS_SSL_DISABLE_PARSE_CERTIFICATE)
 
 #if defined(MBEDTLS_SSL_SRV_C)
 static int ssl_srv_check_client_no_crt_notification( mbedtls_ssl_context *ssl )
@@ -2497,6 +2499,8 @@ static int ssl_srv_check_client_no_crt_notification( mbedtls_ssl_context *ssl )
  */
 #define SSL_CERTIFICATE_EXPECTED 0
 #define SSL_CERTIFICATE_SKIP     1
+
+#if !defined(MBEDTLS_SSL_DISABLE_PARSE_CERTIFICATE)
 static int ssl_parse_certificate_coordinate( mbedtls_ssl_context *ssl,
                                              int authmode )
 {
@@ -2723,6 +2727,7 @@ static int ssl_parse_certificate_verify( mbedtls_ssl_context *ssl,
 
     return( ret );
 }
+#endif // !defined(MBEDTLS_SSL_DISABLE_PARSE_CERTIFICATE)
 
 #if !defined(MBEDTLS_SSL_KEEP_PEER_CERTIFICATE)
 static int ssl_remember_peer_crt_digest( mbedtls_ssl_context *ssl,
@@ -2778,6 +2783,7 @@ static int ssl_remember_peer_pubkey( mbedtls_ssl_context *ssl,
 
 int mbedtls_ssl_parse_certificate( mbedtls_ssl_context *ssl )
 {
+#if !defined(MBEDTLS_SSL_DISABLE_PARSE_CERTIFICATE)
     int ret = 0;
     int crt_expected;
 #if defined(MBEDTLS_SSL_SRV_C) && defined(MBEDTLS_SSL_SERVER_NAME_INDICATION)
@@ -2925,6 +2931,10 @@ exit:
     }
 
     return( ret );
+#else
+    ssl->state++;
+    return 0;
+#endif // !defined(MBEDTLS_SSL_DISABLE_PARSE_CERTIFICATE)
 }
 #endif /* MBEDTLS_KEY_EXCHANGE_WITH_CERT_ENABLED */
 
