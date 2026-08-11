@@ -3060,6 +3060,7 @@ static void ssl_update_checksum_sha384( mbedtls_ssl_context *ssl,
 static int ssl_calc_finished_ssl(
                 mbedtls_ssl_context *ssl, unsigned char *buf, int from )
 {
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     const char *sender;
     mbedtls_md5_context  md5;
     mbedtls_sha1_context sha1;
@@ -3104,32 +3105,53 @@ static int ssl_calc_finished_ssl(
 
     memset( padbuf, 0x36, 48 );
 
-    mbedtls_md5_update_ret( &md5, (const unsigned char *) sender, 4 );
-    mbedtls_md5_update_ret( &md5, session->master, 48 );
-    mbedtls_md5_update_ret( &md5, padbuf, 48 );
-    mbedtls_md5_finish_ret( &md5, md5sum );
+    if( ( ret = mbedtls_md5_update_ret( &md5, (const unsigned char *) sender, 4 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_md5_update_ret( &md5, session->master, 48 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_md5_update_ret( &md5, padbuf, 48 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_md5_finish_ret( &md5, md5sum ) ) != 0 )
+        goto exit;
 
-    mbedtls_sha1_update_ret( &sha1, (const unsigned char *) sender, 4 );
-    mbedtls_sha1_update_ret( &sha1, session->master, 48 );
-    mbedtls_sha1_update_ret( &sha1, padbuf, 40 );
-    mbedtls_sha1_finish_ret( &sha1, sha1sum );
+    if( ( ret = mbedtls_sha1_update_ret( &sha1, (const unsigned char *) sender, 4 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_sha1_update_ret( &sha1, session->master, 48 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_sha1_update_ret( &sha1, padbuf, 40 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_sha1_finish_ret( &sha1, sha1sum ) ) != 0 )
+        goto exit;
 
     memset( padbuf, 0x5C, 48 );
 
-    mbedtls_md5_starts_ret( &md5 );
-    mbedtls_md5_update_ret( &md5, session->master, 48 );
-    mbedtls_md5_update_ret( &md5, padbuf, 48 );
-    mbedtls_md5_update_ret( &md5, md5sum, 16 );
-    mbedtls_md5_finish_ret( &md5, buf );
+    if( ( ret = mbedtls_md5_starts_ret( &md5 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_md5_update_ret( &md5, session->master, 48 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_md5_update_ret( &md5, padbuf, 48 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_md5_update_ret( &md5, md5sum, 16 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_md5_finish_ret( &md5, buf ) ) != 0 )
+        goto exit;
 
-    mbedtls_sha1_starts_ret( &sha1 );
-    mbedtls_sha1_update_ret( &sha1, session->master, 48 );
-    mbedtls_sha1_update_ret( &sha1, padbuf , 40 );
-    mbedtls_sha1_update_ret( &sha1, sha1sum, 20 );
-    mbedtls_sha1_finish_ret( &sha1, buf + 16 );
+    if( ( ret = mbedtls_sha1_starts_ret( &sha1 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_sha1_update_ret( &sha1, session->master, 48 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_sha1_update_ret( &sha1, padbuf , 40 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_sha1_update_ret( &sha1, sha1sum, 20 ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_sha1_finish_ret( &sha1, buf + 16 ) ) != 0 )
+        goto exit;
 
     MBEDTLS_SSL_DEBUG_BUF( 3, "calc finished result", buf, 36 );
 
+    MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= calc  finished" ) );
+
+exit:
     mbedtls_md5_free(  &md5  );
     mbedtls_sha1_free( &sha1 );
 
@@ -3137,9 +3159,7 @@ static int ssl_calc_finished_ssl(
     mbedtls_platform_zeroize(  md5sum, sizeof(  md5sum ) );
     mbedtls_platform_zeroize( sha1sum, sizeof( sha1sum ) );
 
-    MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= calc  finished" ) );
-
-    return( 0 );
+    return( ret );
 }
 #endif /* MBEDTLS_SSL_PROTO_SSL3 */
 
@@ -3147,6 +3167,7 @@ static int ssl_calc_finished_ssl(
 static int ssl_calc_finished_tls(
                 mbedtls_ssl_context *ssl, unsigned char *buf, int from )
 {
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     int len = 12;
     const char *sender;
     mbedtls_md5_context  md5;
@@ -3185,22 +3206,26 @@ static int ssl_calc_finished_tls(
              ? "client finished"
              : "server finished";
 
-    mbedtls_md5_finish_ret(  &md5, padbuf );
-    mbedtls_sha1_finish_ret( &sha1, padbuf + 16 );
+    if( ( ret = mbedtls_md5_finish_ret(  &md5, padbuf ) ) != 0 )
+        goto exit;
+    if( ( ret = mbedtls_sha1_finish_ret( &sha1, padbuf + 16 ) ) != 0 )
+        goto exit;
 
-    ssl->handshake->tls_prf( session->master, 48, sender,
-                             padbuf, 36, buf, len );
+    if( ( ret = ssl->handshake->tls_prf( session->master, 48, sender,
+                                         padbuf, 36, buf, len ) ) != 0 )
+        goto exit;
 
     MBEDTLS_SSL_DEBUG_BUF( 3, "calc finished result", buf, len );
 
+    MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= calc  finished" ) );
+
+exit:
     mbedtls_md5_free(  &md5  );
     mbedtls_sha1_free( &sha1 );
 
     mbedtls_platform_zeroize(  padbuf, sizeof(  padbuf ) );
 
-    MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= calc  finished" ) );
-
-    return( 0 );
+    return( ret );
 }
 #endif /* MBEDTLS_SSL_PROTO_TLS1 || MBEDTLS_SSL_PROTO_TLS1_1 */
 
